@@ -16,6 +16,12 @@ public class PointsManager : MonoBehaviour
     private float _prefabRadius = 0.1f;
 
     private const int LevelOfPartitioning = 4;
+    
+    private Quaternion _startRotation;
+    private Quaternion _endRotation;
+    private float _rotationStartTime;
+    private float _rotationDuration;
+    private bool _justStartedAnimation = false;
 
     public int AmountOfPoints { get; private set; }
 
@@ -188,43 +194,26 @@ public class PointsManager : MonoBehaviour
     #endregion
     void Update()
     {
-        if (_currentPoint == null || _animationStopped)
-            return;
-        
-        var (targetPosition, rotationTime) = _currentPoint.Value;
-        Vector3 direction = targetPosition - target.transform.position;
-        
-        if (direction == Vector3.zero)
+        if (_animationStopped || _currentPoint == null)
             return;
 
-        Quaternion targetRotation = Quaternion.LookRotation(direction);
-        float angle = Quaternion.Angle(target.transform.rotation, targetRotation);
-        if (angle < 0.01f && !_animationStopped)
-        {
-            if (_currentQueue == null || _currentQueue.Count == 0 || _animationStopped)
-            {
-                _currentPoint = null;
-                return;
-            }
+        if (_justStartedAnimation) {
+            _justStartedAnimation = false;
+            return;
+        }
+
+        float t = Mathf.Clamp01((Time.time - _rotationStartTime) / _rotationDuration);
+        target.transform.rotation = Quaternion.Slerp(_startRotation, _endRotation, t);
+
+        if (t >= 1.0f) {
             _currentQueue.Dequeue();
-        
-            if (_currentQueue.Count > 0)
+            if (_currentQueue.Count > 0) {
                 _currentPoint = _currentQueue.Peek();
-            else
-            {
+                PrepareNextRotation(_currentPoint.Value.Item1, _currentPoint.Value.Item2);
+            } else {
                 _currentPoint = null;
                 _animationEnded?.Invoke(this, EventArgs.Empty);
             }
-        }
-        else
-        {
-            float rotationSpeed = 360f / rotationTime;
-            target.transform.rotation = Quaternion.RotateTowards(
-                target.transform.rotation,
-                targetRotation,
-                rotationSpeed * Time.deltaTime
-            );
-            
         }
     }
 
@@ -239,7 +228,35 @@ public class PointsManager : MonoBehaviour
         _currentQueue = new Queue<(Vector3, float)>(posTimes);
         _currentPoint = _currentQueue.Peek();
         _animationStopped = false;
+
         AimAt(_currentPoint.Value.Item1);
+        _currentQueue.Dequeue(); // Первая точка уже выставлена, убираем из очереди
+        if (_currentQueue.Count > 0) {
+            _currentPoint = _currentQueue.Peek();
+            PrepareNextRotation(_currentPoint.Value.Item1, _currentPoint.Value.Item2);
+            _justStartedAnimation = true;
+        } else {
+            _currentPoint = null;
+            _animationEnded?.Invoke(this, EventArgs.Empty);
+        }
+    }
+    
+    private void PrepareNextRotation(Vector3 position, float rotationTime)
+    {
+        _startRotation = target.transform.rotation;
+        Vector3 direction = position - target.transform.position;
+        _endRotation = Quaternion.LookRotation(direction);
+        _rotationStartTime = Time.time;
+        _rotationDuration = rotationTime;
+    }
+    
+    void SetNewTarget(Vector3 position, float rotationTime)
+    {
+        _startRotation = target.transform.rotation;
+        Vector3 direction = position - target.transform.position;
+        _endRotation = Quaternion.LookRotation(direction);
+        _rotationStartTime = Time.time;
+        _rotationDuration = rotationTime;
     }
 
     public void ContinueAnimation()
