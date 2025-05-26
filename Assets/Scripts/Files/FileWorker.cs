@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using DTOs;
 using Newtonsoft.Json;
+using SFB;
 using UnityEngine;
 
 namespace Files
@@ -46,7 +47,9 @@ namespace Files
         {
             if (string.IsNullOrEmpty(_currentPath))
             {
-                _currentPath = FileDialog.SaveJsonFile();
+                _currentPath = StandaloneFileBrowser.SaveFilePanel("Save scene", "", "", "json");
+                if (string.IsNullOrEmpty(_currentPath))
+                    return;
             }
 
             var data = DataModel.Points

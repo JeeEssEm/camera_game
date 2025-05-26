@@ -4,13 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Files;
-using System.Windows.Forms;
+using SFB;
 using UI;
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEditor;
 using Button = UnityEngine.UI.Button;
-using FileDialog = Files.FileDialog;
 
 
 public class PointsManagerMenu : MonoBehaviour
@@ -238,9 +235,10 @@ public class PointsManagerMenu : MonoBehaviour
         //     FileBrowser.PickMode.Files,
         //     false
         // );
-        var filePath = FileDialog.OpenJsonFile();
-        if (!string.IsNullOrEmpty(filePath))
-            _fileWorker.LoadData(filePath);
+        // var filePath = FileDialog.OpenJsonFile();
+        var filePath = StandaloneFileBrowser.OpenFilePanel("Select file with scene", "", "json", false);
+        if (filePath.Length > 0)
+            _fileWorker.LoadData(filePath[0]);
     }
 
     public void SaveFile()
